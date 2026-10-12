@@ -760,6 +760,7 @@ def validate_citations(answer, evidence):
     }
 
     results = []
+    seen_citations = set()
     for source, first_page, last_page in citations:
         normalized_source = os.path.basename(source.replace("\\", "/")).strip().lower()
         pages = [first_page]
@@ -774,6 +775,15 @@ def validate_citations(answer, evidence):
                 pages = [first_page]
 
         for page_num in pages:
+                citation_key = (normalized_source, str(page_num))
+
+                if citation_key in seen_citations:
+                   continue
+                seen_citations.add(citation_key)
+
+
+
+            
             is_matched = (normalized_source, str(page_num)) in available_pairs
             results.append(
                 {
