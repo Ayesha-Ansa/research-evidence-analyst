@@ -743,16 +743,20 @@ Retrieved evidence:
 # ============================================================
 
 
+
 def validate_citations(answer, evidence):
-    """Check citation matches and remove duplicate source-page rows."""
+    """
+    Match citations against retrieved source-page pairs.
+    Supports single pages, page ranges, and comma-separated pages.
+    Removes duplicate source-page entries.
+    """
 
     citation_pattern = re.compile(
-        r"\[([^\[\],]+?\.pdf)\s*,\s*p{1,2}\.\s*(\d+)"
-        r"(?:\s*[-–]\s*(\d+))?\]",
+        r"\[([^\[\]]+?\.pdf)\s*,\s*pp?\.?\s*"
+        r"(\d+(?:\s*[-–]\s*\d+)?"
+        r"(?:\s*,\s*\d+(?:\s*[-–]\s*\d+)?)*)\s*\]",
         re.IGNORECASE,
     )
-
-    citations = citation_pattern.findall(answer)
 
     available_pairs = {
         (
@@ -767,56 +771,59 @@ def validate_citations(answer, evidence):
     results = []
     seen_citations = set()
 
-    for source, first_page, last_page in citations:
+    for match in citation_pattern.finditer(answer):
+        source = match.group(1).strip()
+        page_spec = match.group(2)
+
         normalized_source = os.path.basename(
             source.replace("\\", "/")
         ).strip().lower()
 
-        pages = [first_page]
+        # Handle citations such as "1, 3, 4" and "1-3, 5".
+        pages = []
 
-        if last_page:
-            try:
-                start_page = int(first_page)
-                end_page = int(last_page)
+        for page_part in re.split(r"\s*,\s*", page_spec):
+            range_match = re.fullmatch(
+                r"(\d+)\s*[-–]\s*(\d+)",
+                page_part.strip(),
+            )
 
-                if (
-                    start_page <= end_page
-                    and end_page - start_page <= 100
-                ):
-                    pages = [
-                        str(page_num)
-                        for page_num in range(
-                            start_page,
-                            end_page + 1,
-                        )
-                    ]
-            except ValueError:
-                pages = [first_page]
+            if range_match:
+                start_page = int(range_match.group(1))
+                end_page = int(range_match.group(2))
+
+                if start_page <= end_page and end_page - start_page <= 100:
+                    pages.extend(
+                        str(page)
+                        for page in range(start_page, end_page + 1)
+                    )
+                else:
+                    pages.extend([str(start_page), str(end_page)])
+
+            else:
+                pages.append(page_part.strip())
 
         for page_num in pages:
-            # Keep each source-page combination only once.
             citation_key = (normalized_source, str(page_num))
 
+            # Show each source-page pair only once.
             if citation_key in seen_citations:
                 continue
 
             seen_citations.add(citation_key)
 
-            is_matched = (
-                citation_key in available_pairs
-            )
+            is_matched = citation_key in available_pairs
 
-            results.append(
-                {
-                    "Source": source.strip(),
-                    "Page": page_num,
-                    "Matched to retrieved evidence": (
-                        "Yes" if is_matched else "No"
-                    ),
-                }
-            )
+            results.append({
+                "Source": source,
+                "Page": page_num,
+                "Matched to retrieved evidence": (
+                    "Yes" if is_matched else "No"
+                ),
+            })
 
     return results
+
 
 
 # ============================================================
