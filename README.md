@@ -4,8 +4,6 @@ An interactive Retrieval-Augmented Generation (RAG) application for asking quest
 
 <p align="center">
   <a href="https://research-evidence-analyst-dtgmee6svlkqpbg6ctazqk.streamlit.app/"><strong>🚀 Try the Live App</strong></a>
-  &nbsp; | &nbsp;
-  <a href="https://github.com/Ayesha-Ansa/research-evidence-analyst"><strong>📂 View Source Code</strong></a>
 </p>
 
 ## Overview
@@ -32,18 +30,18 @@ Users can search either the included sample corpus or upload their own text-base
 
 ```mermaid
 flowchart TD
-    A[Select sample corpus or upload PDFs] --> B[Extract page text]
-    B --> C[Split text into overlapping chunks]
+    A[Choose sample corpus or upload PDFs] --> B[Extract page text]
+    B --> C[Split into overlapping chunks with source and page metadata]
     C --> D[Generate embeddings]
     D --> E[FAISS semantic retrieval]
     C --> F[BM25 keyword retrieval]
     E --> G[Reciprocal Rank Fusion]
     F --> G
     G --> H[Cross-encoder reranking]
-    H --> I[Evidence sufficiency check]
-    I -->|Sufficient| J[Generate grounded answer with citations]
-    I -->|Insufficient| K[Abstain with an insufficient-evidence message]
-    J --> L[Match citations to retrieved source pages]
+    H --> I{Is the evidence sufficient?}
+    I -->|Yes| J[Generate grounded answer and citations]
+    I -->|No| K[Abstain and explain insufficient evidence]
+    J --> L[Match cited source-page pairs to retrieved evidence]
 ```
 
 ### Retrieval pipeline
@@ -55,6 +53,14 @@ flowchart TD
 5. Ask the sufficiency evaluator whether the retrieved excerpts can answer the question.
 6. If sufficient, generate a response grounded in the excerpts; otherwise, return an abstention message.
 7. Compare citations in the response against the source-page pairs in the retrieved evidence.
+
+## Why This Project Matters for Data Analyst / Data Scientist Roles
+
+**For Data Analyst roles**, this project demonstrates the ability to turn long, unstructured documents into usable evidence; validate outputs rather than relying on a fluent response alone; communicate findings with traceable sources; and explain limitations clearly to a stakeholder.
+
+**For Data Scientist and applied AI roles**, it demonstrates an end-to-end retrieval pipeline: embedding-based search, lexical retrieval, rank fusion, cross-encoder reranking, evidence sufficiency assessment, citation matching, and evaluation of failure cases. It also highlights an important model-behavior decision: abstaining when the available evidence does not support an answer.
+
+**For both paths**, the project combines Python, data processing, API integration, reproducible setup, a deployed interactive app, and an evaluation mindset. It is a portfolio prototype—not a claim that the system is production-ready or fully reliable.
 
 ## Technology Stack
 
@@ -88,15 +94,45 @@ To keep processing time and API usage bounded, the app currently allows up to:
 
 Uploaded-document indexes are held in the current Streamlit session and are not added to the permanent sample corpus. You may need to process the PDFs again in a new session.
 
-## Configuration
+## Evaluation
 
-Model names and retrieval settings are defined in [`config.yaml`](config.yaml). The current configuration uses:
+Evaluation is an ongoing part of this project. The results below come from a **small preliminary evaluation and manual functional checks**; they should not be interpreted as a comprehensive or statistically robust benchmark.
 
-- Embeddings: `text-embedding-3-small`
-- Generation: `gpt-4.1-mini`
-- Reranker: `cross-encoder/ms-marco-MiniLM-L-6-v2`
+### Preliminary results
 
-The application also uses fixed public-demo upload limits defined in `app.py`.
+| Check | Observed result | How to interpret it |
+|---|---:|---|
+| Retrieval Precision@5 | **32.3%** | Average proportion of the top-five retrieved passages judged relevant in an earlier small evaluation. |
+| Retrieval Recall@5 | **100%** | All passages marked relevant for the evaluated answerable questions were retrieved within the top five in that small evaluation. |
+| Insufficient-evidence tests | **2/2 passed** | Both tested unanswerable questions triggered an abstention rather than a fabricated answer. |
+| Citation matching in one uploaded-PDF answer | **3/3 matched** | Three unique cited source-page pairs were present in the retrieved evidence for this example. This is not an overall citation-quality score. |
+| LLM-judge review of generated claims | **9/9 judged supported** | A model-based evaluator judged nine claims across two answers as supported; this is not an independent human verification. |
+
+These measurements come from different small test runs and should not be combined into a single score. In particular, citation matching verifies that a source/page pair appears in retrieved evidence; it does **not** establish that the cited passage actually entails the associated claim.
+
+### Starter benchmark questions
+
+The following small test set provides a repeatable starting point for evaluating the system. Expected outcomes are documented here; expand the set and record per-question retrieval relevance labels before treating the results as a formal benchmark.
+
+| Test | Question | Expected answer or behavior | Evaluation focus |
+|---|---|---|---|
+| Q1 — Troubleshooting summary | “What issues did the Chicago Rideshare project encounter during data extraction, processing, and visualization, and how were they resolved?” | Summarize only issues documented in the uploaded report (for example, sampling bias, data loading, API usage, environment connectivity, and visualization) and cite the supporting PDF pages. | Retrieval relevance, grounded synthesis, citation matching |
+| Q2 — Sampling bias | “Why did the initial Chicago rideshare data sample overrepresent Monday and Tuesday, and how was the issue corrected?” | Explain that the initial row-limited pull did not explicitly control ordering and describe the corrected time-based extraction approach, using relevant source-page citations. | Precision@k, Recall@k, source traceability |
+| Q3 — Missing information | “What was the exact monthly revenue generated by the Chicago rideshare project in September 2026, according to this report?” | Abstain if the uploaded report does not contain evidence establishing that figure; do not invent a number. | Abstention correctness |
+| Q4 — Citation audit | Ask a question whose answer is clearly stated on a known page of the uploaded PDF. | The response should cite the correct filename and page; cited pages should be present in the retrieved passages. | Citation match rate and manual claim support review |
+
+For a stronger future benchmark, save these questions alongside the expected key points, relevant source pages, retrieved passage IDs, and pass/fail judgments in a CSV or JSON file. Then rerun the same cases whenever retrieval settings or prompts change. Report both aggregate metrics and important individual failures.
+
+### Metric definitions
+
+- **Precision@5:** relevant passages among the top five retrieved passages, divided by five.
+- **Recall@5:** relevant passages retrieved in the top five, divided by all passages marked relevant for that question.
+- **Citation match rate:** cited source-page references that match retrieved evidence, divided by extracted citation references. This is a source-page check, not claim-level entailment verification.
+- **Abstention accuracy on test cases:** unanswerable test questions correctly refused, divided by all unanswerable test questions evaluated.
+
+## Deployment and Reproducibility
+
+The public demo is hosted on **Streamlit Community Cloud**. The same application can also be run locally with Python and the files in this repository; local execution does not require Streamlit Community Cloud. Follow the setup below to reproduce the app in your own environment.
 
 ## Run Locally
 
@@ -155,15 +191,6 @@ OPENAI_API_KEY = "your-openai-api-key"
 
 Do not put the key in `app.py`, `config.yaml`, or any committed file.
 
-## Evaluation and Functional Checks
-
-The app has been manually smoke-tested with uploaded PDFs for two important behaviors:
-
-- **Answerable question:** the app retrieved passages, generated a synthesis, and matched the extracted source-page citations against the retrieved evidence. One test displayed **3/3 citations matched**.
-- **Insufficient-evidence question:** a question asking for September 2026 monthly revenue from a report covering an earlier analysis window resulted in an insufficient-evidence message instead of an invented revenue figure.
-
-These are functional checks, not a comprehensive benchmark. Citation matching confirms that a cited filename/page is present in retrieved evidence; it does **not** independently prove that the cited passage entails the claim. Retrieval quality and LLM-based sufficiency decisions can still fail and should be evaluated on a broader set of questions and documents.
-
 ## Limitations and Responsible Use
 
 - The PDF parser extracts embedded text; scanned image-only PDFs may require OCR and may not work as expected.
@@ -189,10 +216,4 @@ research-evidence-analyst/
 ## License
 
 This project is licensed under the MIT License. See [`LICENSE`](LICENSE) for details.
-
----
-
-**Project:** Evidence-Based RAG Research Assistant  
-**Live Demo:** https://research-evidence-analyst-dtgmee6svlkqpbg6ctazqk.streamlit.app/  
-**Repository:** https://github.com/Ayesha-Ansa/research-evidence-analyst
 
