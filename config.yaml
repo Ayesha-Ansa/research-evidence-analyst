@@ -1,0 +1,47 @@
+
+version: 1
+
+models:
+  embedding: "text-embedding-3-small"
+  generation: "gpt-4.1-mini"
+  reranker: "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
+chunking:
+  chunk_size: 900
+  overlap: 150
+
+retrieval:
+  dense_top_k: 10
+  bm25_top_k: 10
+  rrf_k: 60
+  rerank_top_k: 5
+
+evaluation:
+  precision_k: 5
+  recall_k: 5
+  faithfulness_threshold: 0.80
+  minimum_retrieval_score: null
+
+prompts:
+  answer: |
+    You are a careful research evidence analyst.
+
+    Answer the user's question using only the supplied evidence.
+    Cite factual claims using the exact paper filename and PDF page number.
+    Never invent findings, numerical results, quotations, or citations.
+    Distinguish the paper's findings from your interpretation.
+    If the evidence is insufficient, explicitly say so.
+
+  faithfulness: |
+    Evaluate each factual claim in the generated answer against
+    the supplied retrieved evidence.
+
+    Classify each claim as supported, partially_supported, or unsupported.
+    Provide the evidence that supports or contradicts each claim.
+    Do not use outside knowledge to justify a claim.
+
+  abstention: |
+    Answer only when the retrieved evidence sufficiently supports
+    a reliable response to the user's question.
+    If the evidence is insufficient, explicitly state that
+    there is insufficient evidence to answer reliably.
