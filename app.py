@@ -742,18 +742,23 @@ Retrieved evidence:
 # 11. CITATION MATCHING
 # ============================================================
 
+
 def validate_citations(answer, evidence):
-    """Check if cited source/page pairs occur in retrieved evidence."""
+    """Check citation matches and remove duplicate source-page rows."""
+
     citation_pattern = re.compile(
         r"\[([^\[\],]+?\.pdf)\s*,\s*p{1,2}\.\s*(\d+)"
         r"(?:\s*[-–]\s*(\d+))?\]",
         re.IGNORECASE,
     )
+
     citations = citation_pattern.findall(answer)
 
     available_pairs = {
         (
-            os.path.basename(str(item["source"]).replace("\\", "/")).strip().lower(),
+            os.path.basename(
+                str(item["source"]).replace("\\", "/")
+            ).strip().lower(),
             str(item["page"]).strip(),
         )
         for item in evidence
@@ -761,37 +766,56 @@ def validate_citations(answer, evidence):
 
     results = []
     seen_citations = set()
+
     for source, first_page, last_page in citations:
-        normalized_source = os.path.basename(source.replace("\\", "/")).strip().lower()
+        normalized_source = os.path.basename(
+            source.replace("\\", "/")
+        ).strip().lower()
+
         pages = [first_page]
 
         if last_page:
             try:
                 start_page = int(first_page)
                 end_page = int(last_page)
-                if start_page <= end_page and end_page - start_page <= 100:
-                    pages = [str(page_num) for page_num in range(start_page, end_page + 1)]
+
+                if (
+                    start_page <= end_page
+                    and end_page - start_page <= 100
+                ):
+                    pages = [
+                        str(page_num)
+                        for page_num in range(
+                            start_page,
+                            end_page + 1,
+                        )
+                    ]
             except ValueError:
                 pages = [first_page]
 
         for page_num in pages:
-                citation_key = (normalized_source, str(page_num))
+            # Keep each source-page combination only once.
+            citation_key = (normalized_source, str(page_num))
 
-                if citation_key in seen_citations:
-                   continue
-                seen_citations.add(citation_key)
+            if citation_key in seen_citations:
+                continue
 
+            seen_citations.add(citation_key)
 
+            is_matched = (
+                citation_key in available_pairs
+            )
 
-            
-            is_matched = (normalized_source, str(page_num)) in available_pairs
             results.append(
                 {
                     "Source": source.strip(),
                     "Page": page_num,
-                    "Matched to retrieved evidence": "Yes" if is_matched else "No",
+                    "Matched to retrieved evidence": (
+                        "Yes" if is_matched else "No"
+                    ),
                 }
             )
+
     return results
 
 
