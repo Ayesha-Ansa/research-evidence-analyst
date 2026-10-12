@@ -1,0 +1,7 @@
+streamlit
+openai
+faiss-cpu
+rank-bm25
+sentence-transformers
+numpy
+PyYAML
