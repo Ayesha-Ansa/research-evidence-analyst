@@ -978,11 +978,7 @@ if "research_result" in st.session_state:
     with citation_column:
         st.markdown("### 🔗 Citation Verification")
         if result["citations"]:
-            st.dataframe(
-                result["citations"],
-                use_container_width=True,
-                hide_index=True,
-            )
+            st.table(result["citations"])
         else:
             st.info("No citations were extracted from the generated answer.")
 
