@@ -1,232 +1,320 @@
 # 🔬 Evidence-Based RAG Research Assistant
 
-An interactive Retrieval-Augmented Generation (RAG) application for asking questions about research papers and PDF reports. It combines dense semantic search, BM25 keyword retrieval, Reciprocal Rank Fusion (RRF), and cross-encoder reranking to retrieve relevant passages before generating an evidence-grounded answer with source-page citations.
+An interactive Retrieval-Augmented Generation (RAG) application for exploring research papers and PDF reports.
 
-<p align="center">
-  <a href="https://research-evidence-analyst-dtgmee6svlkqpbg6ctazqk.streamlit.app/"><strong>🚀 Try the Live App</strong></a>
-</p>
+The system combines **dense semantic search, BM25 keyword retrieval, Reciprocal Rank Fusion (RRF), and cross-encoder reranking** before checking evidence sufficiency and generating an answer with source-page citations.
 
-## Overview
+**[🚀 Try the Live App](https://research-evidence-analyst-dtgmee6svlkqpbg6ctazqk.streamlit.app/)**
 
-Research papers and technical reports can be long and difficult to search manually. This project provides a question-answering interface that retrieves passages from a selected document corpus, checks whether the retrieved evidence appears sufficient, and generates an answer grounded in that evidence. When the evidence is insufficient, the app is designed to abstain rather than confidently invent an answer.
+## 📌 Overview
 
-Users can search either the included sample corpus or upload their own text-based PDF documents for the current app session.
+Research papers can be difficult to search and compare manually. This project retrieves relevant passages from a selected document corpus and uses them to generate a research synthesis.
 
-## Included Sample Corpus
+When the evidence appears insufficient, the application is designed to abstain. Users can inspect the retrieved passages, model scores and citation matches rather than relying on the generated answer alone.
 
-The app includes a preprocessed, searchable sample corpus built from these three research papers. Recruiters can try the benchmark questions below without uploading a document first. The sample papers are represented in the prebuilt `chunks.json` and `evidence.index` files; they are not presented as downloadable PDFs in the app interface.
+This is a **portfolio prototype requiring human review**, not a guarantee of factual correctness.
+
+## 📚 Included Sample Corpus
+
+The application includes a prebuilt corpus containing **411 chunks** from three papers:
 
 - `Analysis of PCA Algorithms in Distributed.pdf`
 - `FINDING STRUCTURE WITH RANDOMNESS.pdf`
 - `Sparse Principal Component Analysis.pdf`
 
-You can also upload your own text-based PDFs. Uploaded documents are processed into a separate, session-scoped corpus and do not replace or permanently alter the sample corpus.
+The sample corpus is represented by `chunks.json` and `evidence.index`. The original PDFs are not provided as downloadable files in the app.
 
-## Features
+Users can also upload text-based PDFs to create a separate, temporary corpus for their current session.
 
-- **Two corpus options:** search the pre-indexed sample corpus or upload PDFs to create a temporary searchable corpus.
-- **PDF processing:** extract text page by page, split it into overlapping chunks, and preserve source filenames and page numbers.
-- **Dense semantic retrieval:** create embeddings for uploaded passages and search them with FAISS.
-- **Keyword retrieval:** use BM25 to retrieve passages based on lexical overlap.
-- **Hybrid ranking:** combine dense and BM25 rankings with Reciprocal Rank Fusion (RRF).
-- **Cross-encoder reranking:** reorder retrieved candidates to prioritize passages most relevant to the question.
-- **Evidence sufficiency check:** use an LLM-based check to decide whether retrieved passages are sufficient to answer.
-- **Evidence-grounded synthesis:** generate a structured response from the retrieved passages and request source-page citations.
-- **Citation matching:** check whether cited source/page pairs appear in the retrieved evidence.
-- **Interactive Streamlit interface:** view the answer, citation table, active corpus information, and expandable retrieved passages with scores.
-- **Dual API-key mode:** use a hosted OpenAI key by default when configured in Streamlit Secrets, or let visitors choose their own key.
+## ✨ Features
 
-## How It Works
+- **Sample or uploaded corpus:** search the included papers or process your own PDFs.
+- **Page-level extraction:** preserve filenames and PDF page numbers.
+- **Semantic retrieval:** search OpenAI embeddings using FAISS.
+- **Keyword retrieval:** identify lexical matches using BM25.
+- **Rank fusion:** combine semantic and keyword rankings using RRF.
+- **Cross-encoder reranking:** score candidate passages against the question.
+- **Evidence sufficiency assessment:** check whether retrieved passages support an answer.
+- **Source-page citations:** request references to the supplied evidence.
+- **Citation matching:** check whether cited filename–page pairs appear in retrieved passages.
+- **Result context:** display the question and corpus associated with an answer.
+- **Session handling:** clear previous results when submitting another question or changing the active corpus.
+- **Distinct upload filenames:** reject duplicate filenames to avoid ambiguous citations.
+- **API-key options:** use a hosted key when configured or enter a personal key.
+
+## 🔄 How It Works
 
 ```mermaid
 flowchart TD
-    A[Choose sample corpus or upload PDFs] --> B[Extract page text]
-    B --> C[Split into overlapping chunks with source and page metadata]
-    C --> D[Generate embeddings]
-    D --> E[FAISS semantic retrieval]
-    C --> F[BM25 keyword retrieval]
-    E --> G[Reciprocal Rank Fusion]
-    F --> G
-    G --> H[Cross-encoder reranking]
-    H --> I{Is the evidence sufficient?}
-    I -->|Yes| J[Generate grounded answer and citations]
-    I -->|No| K[Abstain and explain insufficient evidence]
-    J --> L[Match cited source-page pairs to retrieved evidence]
+    A["Select a document corpus"] --> B["Dense semantic search"]
+    A --> C["BM25 keyword search"]
+    B --> D["Reciprocal Rank Fusion"]
+    C --> D
+    D --> E["Cross-encoder reranking"]
+    E --> F{"Sufficient evidence?"}
+    F -->|Yes| G["Generate answer with citations"]
+    F -->|No| H["Return insufficient-evidence response"]
+    G --> I["Match citations to retrieved pages"]
 ```
 
-### Retrieval pipeline
+The application retrieves up to ten candidates from each search method, combines their rankings, reranks up to twenty candidates and returns up to five evidence passages.
 
-1. Extract and chunk the selected corpus while retaining source and page metadata.
-2. Retrieve candidates through FAISS dense search and BM25 keyword search.
-3. Combine candidate rankings with Reciprocal Rank Fusion.
-4. Rerank the top candidates with a cross-encoder.
-5. Ask the sufficiency evaluator whether the retrieved excerpts can answer the question.
-6. If sufficient, generate a response grounded in the excerpts; otherwise, return an abstention message.
-7. Compare citations in the response against the source-page pairs in the retrieved evidence.
+The sufficiency check and answer generation use pretrained language models. This project does not train an LLM.
 
-## Why This Project Matters for Data Analyst / Data Scientist Roles
+## 🧠 Models and Configuration
 
-**For Data Analyst roles**, this project demonstrates the ability to turn long, unstructured documents into usable evidence; validate outputs rather than relying on a fluent response alone; communicate findings with traceable sources; and explain limitations clearly to a stakeholder.
+| Component | Configuration |
+|---|---|
+| Embeddings | `text-embedding-3-small` |
+| Generation and sufficiency assessment | `gpt-4.1-mini` |
+| Reranker | `cross-encoder/ms-marco-MiniLM-L-6-v2` |
+| Vector search | FAISS |
+| Keyword search | BM25 |
+| Dense candidates | 10 |
+| Keyword candidates | 10 |
+| RRF constant | 60 |
+| Final evidence passages | Up to 5 |
 
-**For Data Scientist and applied AI roles**, it demonstrates an end-to-end retrieval pipeline: embedding-based search, lexical retrieval, rank fusion, cross-encoder reranking, evidence sufficiency assessment, citation matching, and evaluation of failure cases. It also highlights an important model-behavior decision: abstaining when the available evidence does not support an answer.
+The sample corpus was constructed using **900-character chunks with 150-character overlap**.
 
-**For both paths**, the project combines Python, data processing, API integration, reproducible setup, a deployed interactive app, and an evaluation mindset. It is a portfolio prototype—not a claim that the system is production-ready or fully reliable.
+The deployed app uses **1,200-character chunks with 180-character overlap** for newly uploaded PDFs. These settings do not modify the existing sample index.
 
-## Technology Stack
+## ▶️ Try the App
 
-- **Python** — application and retrieval pipeline
-- **Streamlit** — interactive web interface and deployment
-- **OpenAI API** — text embeddings, evidence sufficiency assessment, and answer generation
-- **FAISS** — vector similarity search
-- **BM25 (`rank-bm25`)** — keyword retrieval
-- **Sentence Transformers / CrossEncoder** — reranking retrieved passages
-- **pypdf** — PDF text extraction
-- **NumPy and PyYAML** — vector operations and configuration
+1. Open the live app.
+2. Choose the hosted demo key, if available, or enter your own OpenAI API key.
+3. Use the sample corpus directly, or upload PDFs and click **Process Uploaded PDFs**.
+4. Enable **Search uploaded PDFs** when you want to query the uploaded corpus.
+5. Enter a question and click **Synthesize Answer**.
+6. Review the synthesis, citation table and full evidence passages.
 
-## Try the Live Demo
+### Upload Limits
 
-1. Open the [live Streamlit app](https://research-evidence-analyst-dtgmee6svlkqpbg6ctazqk.streamlit.app/).
-2. Choose **Hosted demo key** if it is available, or select **Use my own API key**.
-3. To try the included sample corpus, enter a question directly; the pre-indexed sample corpus is used by default in a fresh session.
-4. To test custom documents, upload one or more text-based PDFs in the sidebar and click **Process Uploaded PDFs**.
-5. Make sure **Search uploaded PDFs** is enabled when you want your uploaded files to be the active corpus.
-6. Enter a research question and click **Synthesize Answer**.
-7. Review the generated synthesis, citation-matching table, and retrieved evidence passages.
+| Limit | Maximum |
+|---|---:|
+| PDFs per selection | 3 |
+| File size per PDF | 10 MB |
+| Pages per PDF | 100 |
+| Extracted chunks across uploads | 500 |
 
-### Upload limits in the public demo
+Use distinct filenames for different PDFs.
 
-To keep processing time and API usage bounded, the app currently allows up to:
+Uploaded indexes remain in the current session and are not added to the permanent sample corpus.
 
-- **3 PDFs** per upload selection
-- **10 MB** per PDF
-- **100 pages** per PDF
-- **500 extracted chunks** across the upload selection
+## 📓 Development Notebook
 
-Uploaded-document indexes are held in the current Streamlit session and are not added to the permanent sample corpus. You may need to process the PDFs again in a new session.
+`research_evidence_analyst.ipynb` contains the document-processing and evaluation workflow:
 
-## Evaluation
+1. Configure models and prompts.
+2. Extract PDF text.
+3. Create overlapping chunks.
+4. Generate embeddings and build a FAISS index.
+5. Build BM25 retrieval.
+6. Combine rankings and rerank passages.
+7. Assess evidence and generate answers.
+8. Match citations to source pages.
+9. Inspect retrieval, abstention and claim-support outputs.
+10. Save the document artifacts.
 
-Evaluation is an ongoing part of this project. The results below come from a **small preliminary evaluation and manual functional checks**; they should not be interpreted as a comprehensive or statistically robust benchmark.
+The notebook and deployed application are separate implementations. For example, the notebook uses regex-based BM25 tokenization, while the app uses lowercase whitespace splitting. Notebook evaluation results should therefore not be presented as a benchmark of the deployed app.
 
-### Preliminary results
+## 📊 Exploratory Evaluation
 
-| Check | Observed result | How to interpret it |
-|---|---:|---|
-| Retrieval Precision@5 | **32.3%** | Average proportion of the top-five retrieved passages judged relevant in an earlier small evaluation. |
-| Retrieval Recall@5 | **100%** | All passages marked relevant for the evaluated answerable questions were retrieved within the top five in that small evaluation. |
-| Insufficient-evidence tests | **2/2 passed** | Both tested unanswerable questions triggered an abstention rather than a fabricated answer. |
-| Citation matching in one uploaded-PDF answer | **3/3 matched** | Three unique cited source-page pairs were present in the retrieved evidence for this example. This is not an overall citation-quality score. |
-| LLM-judge review of generated claims | **9/9 judged supported** | A model-based evaluator judged nine claims across two answers as supported; this is not an independent human verification. |
+Evaluation uses a small set of development questions and manually selected source-page relevance labels. Some relevance labels were revised after inspecting retrieval results.
 
-These measurements come from different small test runs and should not be combined into a single score. In particular, citation matching verifies that a source/page pair appears in retrieved evidence; it does **not** establish that the cited passage actually entails the associated claim.
+The results describe **exploratory checks**, not an independent benchmark or general accuracy estimate.
 
-### Starter benchmark questions
+### Latest Notebook Retrieval Results
 
-Use the **pre-indexed sample corpus** for Q1, Q2, Q3, and Q5; no separate PDF download is required. Q4 is an out-of-corpus question designed to check whether the app abstains when the sample papers do not contain the requested information. These are proposed starter tests, not claims that every question has already been fully benchmarked. Run them and review the retrieved passages and citations before reporting per-question results.
+| Measure | Result |
+|---|---:|
+| Answerable questions evaluated | 5 |
+| Mean unique-page precision within top-five passages | **73.7%** |
+| Mean labelled-page recall within top-five passages | **100%** |
+| Unanswerable questions tested | 2 |
+| Correct abstentions in that run | **2/2** |
 
-| Test | Question | Expected answer or behavior | Evaluation focus |
-|---|---|---|---|
-| Q1 — Distributed PCA | “What approaches to PCA in distributed environments are discussed in *Analysis of PCA Algorithms in Distributed*?” | Summarize the approaches and trade-offs actually described in the paper, and cite the supporting source pages. Do not add claims that are not in the retrieved passages. | Retrieval relevance, grounded synthesis, citation matching |
-| Q2 — Sparse PCA | “How does sparse PCA differ from standard PCA, and what motivation for sparsity does the paper provide?” | Explain the distinction using evidence from *Sparse Principal Component Analysis.pdf* and cite the relevant pages. | Precision@k, Recall@k, source traceability |
-| Q3 — Randomized methods | “What role does randomness play in the methods described in *FINDING STRUCTURE WITH RANDOMNESS*?” | Summarize the paper’s treatment of randomized methods using retrieved evidence and source-page citations. | Retrieval relevance, answer grounding, citation matching |
-| Q4 — Missing information | “What exact monthly revenue did the Chicago Rideshare project generate in September 2026?” | Since the Chicago Rideshare report is not part of the permanent sample corpus, the app should state that the available papers do not establish this figure rather than inventing a number. | Abstention correctness, out-of-corpus handling |
-| Q5 — Citation audit | Ask a specific question whose answer is clearly stated on a known page of one of the three sample papers. | Check that the answer names the correct PDF and page, that the cited source-page pair is present among the retrieved passages, and manually review whether the passage supports the claim. | Citation match rate, source traceability, manual claim-support review |
+The precision and recall measures use **source-page labels**, not independently annotated passage-level relevance.
 
-**How to run the tests:** open the [live app](https://research-evidence-analyst-dtgmee6svlkqpbg6ctazqk.streamlit.app/) in a fresh session and ask Q1–Q3 and Q5 directly; the pre-indexed sample corpus is selected by default. For Q4, use the same corpus and verify that the app abstains. To test the upload feature separately, upload a text-based PDF, click **Process Uploaded PDFs**, and make sure **Search uploaded PDFs** is enabled before asking a question about that document.
+| Question topic | Unique-page precision | Labelled-page recall |
+|---|---:|---:|
+| Computational and communication challenges | 100.0% | 100.0% |
+| Sparse PCA paper topic | 66.7% | 100.0% |
+| Communication complexity | 75.0% | 100.0% |
+| Computationally intensive methods | 60.0% | 100.0% |
+| Sparse PCA paper contributions | 66.7% | 100.0% |
 
-For a stronger future benchmark, record each question, expected key points, relevant pages, retrieved passage IDs, and pass/fail judgments in CSV or JSON. Add relevance labels for the candidate passages before reporting retrieval metrics. Rerun the same cases whenever prompts or retrieval settings change, and include examples of failures as well as successes.
+These figures reflect the revised development labels. They do not demonstrate that retrieval improved or that every relevant passage was found.
 
-### Metric definitions
+### Metric Definitions
 
-- **Precision@5:** relevant passages among the top five retrieved passages, divided by five.
-- **Recall@5:** relevant passages retrieved in the top five, divided by all passages marked relevant for that question.
-- **Citation match rate:** cited source-page references that match retrieved evidence, divided by extracted citation references. This is a source-page check, not claim-level entailment verification.
-- **Abstention accuracy on test cases:** unanswerable test questions correctly refused, divided by all unanswerable test questions evaluated.
+- **Unique-page precision:** distinct retrieved source-page pairs labelled relevant, divided by all distinct source-page pairs represented in the top-five passages.
+- **Labelled-page recall:** distinct labelled source-page pairs retrieved within the top-five passages, divided by all source-page pairs labelled relevant for that question.
+- **Citation matching:** extracted filename–page references that appear in retrieved evidence.
+- **Abstention check:** whether the system declines a question expected to be unanswerable from the selected corpus.
 
-## Deployment and Reproducibility
+**Unique-page precision is not conventional passage Precision@5.** Multiple retrieved chunks can come from the same page, so the denominator can be smaller than five.
 
-The public demo is hosted on **Streamlit Community Cloud**. The same application can also be run locally with Python and the files in this repository; local execution does not require Streamlit Community Cloud. Follow the setup below to reproduce the app in your own environment.
+### Historical LLM-Judge Record
 
-## Run Locally
+An earlier manually recorded evaluation reported **nine claims across two answers judged supported by an LLM evaluator**.
 
-### 1. Clone the repository
+Those counts remain labelled historical in the notebook. They are not automatically recalculated from the latest generated answers and are not independent human verification. They should not be interpreted as a current faithfulness score.
+
+## 🧪 Live Functional Checks
+
+The following behaviours were observed in manual testing:
+
+| Check | Observed behaviour |
+|---|---|
+| Sparse PCA question | Retrieved five passages and generated an answer with citations. |
+| Citation matching for that answer | Three unique cited source-page pairs matched retrieved evidence. |
+| Empty submission | Displayed a validation message and cleared the previous results. |
+| Out-of-corpus revenue question | Returned an insufficient-evidence response. |
+| Answer context | Displayed the submitted question and searched corpus. |
+
+These are individual functional checks, not aggregate accuracy measurements.
+
+### Answer-Quality Finding
+
+The sparse PCA test also exposed an important limitation: an answer with matching citations still contained the incorrect generalization that standard PCA assumes all variables contribute equally. It also described a particular wavelet-based approach too broadly.
+
+This illustrates why **citation matching does not establish factual correctness**. Users should inspect the passages and verify the scope of generated claims.
+
+## 💡 Example Questions
+
+Use the sample corpus for these exploratory questions:
+
+- What computational and communication challenges arise in distributed PCA?
+- How does the sparse PCA approach described in the supplied paper differ from standard PCA?
+- What role does randomness play in the methods described in *FINDING STRUCTURE WITH RANDOMNESS*?
+- Which methods does the distributed PCA paper identify as computationally intensive?
+
+To check abstention:
+
+> What exact monthly revenue did the Chicago Rideshare project generate in September 2026?
+
+That information is absent from the sample research corpus, so the app should report insufficient evidence.
+
+## 🛠️ Technology Stack
+
+| Technology | Purpose |
+|---|---|
+| Python | Application and processing logic |
+| Streamlit | Interactive interface |
+| OpenAI API | Embeddings, sufficiency assessment and answer generation |
+| FAISS | Vector similarity search |
+| `rank-bm25` | Keyword retrieval |
+| Sentence Transformers | Cross-encoder reranking |
+| PyMuPDF | PDF extraction in the notebook |
+| `pypdf` | Uploaded-PDF extraction in the app |
+| NumPy | Vector operations |
+| PyYAML | Configuration handling |
+
+## 💻 Run Locally
+
+### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/Ayesha-Ansa/research-evidence-analyst.git
 cd research-evidence-analyst
 ```
 
-### 2. Install dependencies
+### 2. Install App Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Configure the OpenAI API key
+The notebook includes its own installation cell for its development dependencies.
 
-For local development, create a `.streamlit` folder in the project directory and add a file named `secrets.toml`:
+### 3. Configure an API Key
+
+Create `.streamlit/secrets.toml`:
 
 ```toml
 OPENAI_API_KEY = "your-openai-api-key"
 ```
 
-Alternatively, set the `OPENAI_API_KEY` environment variable. **Never commit a real API key to GitHub.**
+Alternatively, set the `OPENAI_API_KEY` environment variable. The app also supports entering a personal key through its interface.
 
-### 4. Run the app
+**Never commit a real API key or secrets file.**
+
+### 4. Start the App
 
 ```bash
 streamlit run app.py
 ```
 
-The app should open in your browser, usually at `http://localhost:8501`.
+Keep these files together:
 
-### Required project files
+- `app.py`
+- `config.yaml`
+- `chunks.json`
+- `evidence.index`
+- `requirements.txt`
 
-Keep the following files in the repository root:
+The notebook is not required to launch the website.
 
-- `app.py` — Streamlit interface and RAG pipeline
-- `requirements.txt` — Python dependencies
-- `config.yaml` — model and retrieval configuration
-- `chunks.json` — preprocessed sample-corpus chunks
-- `evidence.index` — FAISS index for the sample corpus
+## 📦 Corpus Artifacts
 
-## API Key and Cost Notes
+`chunks.json` and `evidence.index` must represent the same chunk order.
 
-The public demo selects the hosted OpenAI API key by default when `OPENAI_API_KEY` is configured in Streamlit Secrets. Visitors can switch to their own OpenAI API key in the sidebar.
+If rebuilding the sample corpus, replace **both files together**. Matching vector and chunk counts alone does not establish that their ordering matches.
 
-When the hosted key is used, API usage is charged to the account associated with that key. Public usage can consume API credits, so the hosted key should be monitored and usage should be controlled. ChatGPT subscriptions and OpenAI API billing are separate.
+The notebook’s configuration supports its development workflow. Do not overwrite the deployed app configuration or dependency file without checking compatibility.
 
-For deployment, add the key in the app's Streamlit Community Cloud **Settings → Secrets** using:
+## 🔑 API Usage
 
-```toml
-OPENAI_API_KEY = "your-openai-api-key"
-```
+The app uses the hosted key when configured, with an option for visitors to use their own key.
 
-Do not put the key in `app.py`, `config.yaml`, or any committed file.
+Embedding requests, sufficiency checks and answer generation consume API credits. Hosted availability depends on the owner’s quota and account settings.
 
-## Limitations and Responsible Use
+For Streamlit deployment, configure `OPENAI_API_KEY` through **Settings → Secrets**.
 
-- The PDF parser extracts embedded text; scanned image-only PDFs may require OCR and may not work as expected.
-- LLM-based evidence sufficiency checks are imperfect. Review the retrieved passages and citations for important decisions.
-- Citation matching validates source-page presence, not claim-level factual support.
-- Uploaded PDF text is sent to the configured OpenAI API for embeddings and model requests. Do not upload confidential or sensitive documents unless you are authorized to share them with that service.
-- The hosted demo key is a shared resource. API availability depends on the owner's quota and account settings.
-- Uploaded-document indexes are session-scoped; this app is a portfolio demo, not a persistent document-management system.
+## ⚠️ Limitations
 
-## Repository Structure
+- Scanned PDFs require OCR, which is not included.
+- PDF extraction can lose table structure, equations and formatting.
+- Retrieval may miss relevant passages.
+- Evidence sufficiency judgments can be incorrect.
+- Generated answers can overgeneralize or contain unsupported statements.
+- Citation matching verifies source-page presence, not claim support.
+- Development relevance labels are incomplete and were revised after inspection.
+- Small evaluation samples do not establish general reliability.
+- Notebook results do not directly benchmark the deployed implementation.
+- Uploaded document text is sent to the configured API; use only documents you are authorized to share.
+- Uploaded corpora are session-scoped rather than persistent.
 
-```text
-research-evidence-analyst/
-├── app.py
-├── config.yaml
-├── chunks.json
-├── evidence.index
-├── requirements.txt
-├── LICENSE
-└── README.md
-```
+## 🔮 Future Improvements
+
+- Create an independent evaluation set with fixed relevance labels.
+- Annotate relevance at passage level.
+- Evaluate answer correctness separately from citation matching.
+- Record false abstentions as well as correct refusals.
+- Align notebook and app processing for direct comparisons.
+- Improve handling of tables, equations and scanned PDFs.
+- Add more challenging and partially answerable questions.
+
+## 📁 Project Files
+
+| File | Purpose |
+|---|---|
+| `research_evidence_analyst.ipynb` | Corpus construction, experiments and evaluation |
+| `app.py` | Deployed Streamlit application |
+| `config.yaml` | App model, retrieval, chunking and prompt settings |
+| `chunks.json` | Sample passages with source-page metadata |
+| `evidence.index` | Corresponding FAISS vector index |
+| `requirements.txt` | App dependencies |
+| `README.md` | Documentation and evaluation scope |
+| `LICENSE` | Project code licence |
+
+## 👩‍💻 Author
+
+**Ayesha Ansari**
+
+Data Science & AI | NLP | Generative AI
 
 ## License
 
-This project is licensed under the MIT License. See [`LICENSE`](LICENSE) for details.
-
+Project code is licensed under the MIT License. See [`LICENSE`](LICENSE). Source research papers remain subject to their respective licences.
